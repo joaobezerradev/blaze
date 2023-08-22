@@ -128,8 +128,6 @@ export class HttpServer {
 
   private async serveSwagger (req: Request, res: Response): Promise<void> {
     const swaggerUiAssetPath = path.resolve(__dirname, 'swagger-ui')
-    writeFileSync('./swagger-ui/index.html', generateIndexHtml(3333));
-
     if (req.url === '/api-docs') {
       const uiHtml = fs.readFileSync(path.join(swaggerUiAssetPath, 'index.html'), 'utf8')
       res.send(uiHtml, 200, { 'Content-Type': 'text/html' })
