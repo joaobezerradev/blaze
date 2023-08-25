@@ -1,6 +1,6 @@
 import { corsMiddleware } from "../middlewares";
 import { HttpServer } from "../server";
-import { SwaggerParams, buildSwaggerDoc } from "../utils/build-swagger-doc";
+import { SwaggerParams, buildSwaggerDoc } from "../src/utils/build-swagger-doc";
 // User schema for the response
 const UserSchema = {
   type: 'object',

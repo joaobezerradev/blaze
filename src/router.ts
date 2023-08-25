@@ -6,7 +6,7 @@ export type RequestHandler = (req: Request, res: Response) => Promise<void>
 export class Router {
   private routes: Record<string, { handler: RequestHandler, pattern: RegExp, paramNames: string[] }> = {}
 
-  register (method: string, path: string, requestHandler: RequestHandler): void {
+  register (method: Router.Method, path: string, requestHandler: RequestHandler): void {
     const paramNames: string[] = []
     let patternStr = '^' + path.replace(/:([a-zA-Z0-9_]+)/g, (_, paramName) => {
       paramNames.push(paramName)
@@ -20,7 +20,7 @@ export class Router {
     patternStr += '$'
     const pattern = new RegExp(patternStr)
 
-    this.routes[`${method.toUpperCase()}|${patternStr}`] = { handler: requestHandler, pattern, paramNames }
+    this.routes[`${method}|${patternStr}`] = { handler: requestHandler, pattern, paramNames }
   }
 
   async route (req: Request, res: Response): Promise<void> {
@@ -42,4 +42,9 @@ export class Router {
 
     res.notFoundError()
   }
+
+}
+
+export namespace Router {
+  export type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 }

@@ -1,20 +1,20 @@
 import { type ServerResponse } from 'node:http'
 
 export class Response {
-  constructor (private readonly serverResponse: ServerResponse) {}
+  constructor (private readonly serverResponse: ServerResponse) { }
 
   setHeader (name: string, value: string): void {
     this.serverResponse.setHeader(name, value)
   }
 
   json (data: object, statusCode = 200): void {
-    this.serverResponse.writeHead(statusCode, { 'Content-Type': 'application/json' })
-    this.serverResponse.end(JSON.stringify(data))
+    this.send(data, statusCode, { 'Content-Type': 'application/json' })
   }
 
   send (data: any, statusCode = 200, content?: any): void {
     this.serverResponse.writeHead(statusCode, content)
     this.serverResponse.end(data)
+    return
   }
 
   unauthorizedError (): void {

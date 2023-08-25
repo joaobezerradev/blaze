@@ -17,7 +17,7 @@ type SwaggerOperation = {
   security?: Array<{ BearerAuth: [] }>;
 };
 
-type JSONSchemaType = 'string' | 'number' | 'boolean' | 'object' | 'array';
+export type JSONSchemaType = 'string' | 'number' | 'boolean' | 'object' | 'array';
 
 type SwaggerJSONContent = {
   schema: {
@@ -33,7 +33,7 @@ type SwaggerResponse = {
   };
 };
 
-type RouteParam = {
+export type RouteParam = {
   name: string;
   in: 'path' | 'query' | 'header' | 'cookie';
   description?: string;
