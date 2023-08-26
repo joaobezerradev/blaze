@@ -1,6 +1,5 @@
 export const generateIndexHtml = (port: number): string => {
-  return `
-  <!-- HTML for static distribution bundle build -->
+  return `<!-- HTML for static distribution bundle build -->
 <!DOCTYPE html>
 <html lang="en">
   <head>

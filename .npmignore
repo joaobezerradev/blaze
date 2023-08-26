@@ -1,0 +1,10 @@
+src/
+.editorconfig
+package-lock.json
+package.json
+tsconfig.json
+example/
+node_modules/
+README.md
+.eslintignore
+.gitignore

@@ -7,10 +7,10 @@ import { Response } from './response'
 import { Router } from './router'
 import { Swagger } from './swagger/swagger'
 
-export class HttpServer {
+export class Blaze {
   private readonly middlewares: HttpServer.RequestHandler[] = []
   private readonly router: Router = new Router()
-  private readonly errorHandlers: Array<(error: Error, request: Request, response: Response) => boolean> = [];
+  private readonly errorHandlers: Array<(error: Error, request: Request, response: Response) => boolean> = []
   private swagger: Swagger | undefined
 
   constructor (private readonly options: HttpServer.Options) { }
@@ -52,37 +52,37 @@ export class HttpServer {
   }
 
   useRouter (router: Router): void {
-    this.router.aggregate(router);
+    this.router.aggregate(router)
   }
 
   public useError (handler: (error: Error, request: Request, response: Response) => boolean): void {
-    this.errorHandlers.push(handler);
+    this.errorHandlers.push(handler)
   }
 
   public listen (callback?: () => void): void {
     if (cluster.isPrimary) {
-      this.setupCluster();
-      callback?.();
+      this.setupCluster()
+      callback?.()
     } else {
-      this.startServer();
+      this.startServer()
     }
   }
 
   private setupCluster (): void {
-    const numCPUs = os.cpus().length;
+    const numCPUs = os.cpus().length
 
     // Inicia um processo filho para cada CPU
     for (let i = 0; i < numCPUs; i++) {
-      cluster.fork();
+      cluster.fork()
     }
 
     // Caso um processo filho seja encerrado, cria um novo para substituí-lo
-    cluster.on('exit', () => cluster.fork());
+    cluster.on('exit', () => cluster.fork())
   }
 
   // Inicia o servidor HTTP
   private startServer (): void {
-    createServer(this.handleRequest.bind(this)).listen(this.options.port);
+    createServer(this.handleRequest.bind(this)).listen(this.options.port)
   }
 
   private async handleRequest (req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -95,18 +95,16 @@ export class HttpServer {
     } catch (error) {
       for (const errorHandler of this.errorHandlers) {
         try {
-          errorHandler(error, request, response);
+          errorHandler(error, request, response)
         } catch (handlerError) {
-          response.internalServerError(handlerError);
+          response.internalServerError(handlerError)
         }
       }
       // Call this if none of the errorHandlers were able to handle the error
       response.internalServerError(error)
     }
-   // response.notFound()
   }
 }
-
 
 export namespace HttpServer {
   export type Options = { port: number }

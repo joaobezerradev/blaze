@@ -1,0 +1,44 @@
+{
+  "parserOptions": {
+    "project": "./tsconfig.json"
+  },
+  "extends": "standard-with-typescript",
+  "rules": {
+    "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/no-misused-promises": "off",
+    "@typescript-eslint/no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_"
+      }
+    ],
+    "@typescript-eslint/no-extraneous-class": "off",
+    "import/order": [
+      "error",
+      {
+        "groups": [
+          "builtin",
+          "external",
+          "internal",
+          [
+            "sibling",
+            "parent"
+          ],
+          "index",
+          "unknown"
+        ],
+        "newlines-between": "always",
+        "alphabetize": {
+          "order": "asc",
+          "caseInsensitive": true
+        }
+      }
+    ],
+    "@typescript-eslint/restrict-template-expressions": "off",
+    "@typescript-eslint/no-non-null-assertion": "off",
+    "@typescript-eslint/return-await": "off",
+    "@typescript-eslint/consistent-type-definitions": "off",
+    "@typescript-eslint/no-namespace": "off",
+    "@typescript-eslint/strict-boolean-expressions": "off"
+  }
+}

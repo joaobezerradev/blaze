@@ -27,9 +27,9 @@ const contentTypes: Record<string, string> = {
   '.mkv': 'video/x-matroska',
   '.wav': 'audio/x-wav',
   '.txt': 'text/plain',
-  '.csv': 'text/csv',
-};
+  '.csv': 'text/csv'
+}
 
 export const getContentType = (extension: string): string => {
-  return contentTypes[extension] || 'application/octet-stream';
-};
+  return contentTypes[extension] || 'application/octet-stream'
+}
