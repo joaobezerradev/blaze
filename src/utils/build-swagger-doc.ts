@@ -17,7 +17,12 @@ type SwaggerOperation = {
   security?: Array<{ BearerAuth: [] }>;
 };
 
-export type JSONSchemaType = 'string' | 'number' | 'boolean' | 'object' | 'array';
+type SwaggerResponse = {
+  description: string;
+  content?: {
+    'application/json': SwaggerJSONContent;
+  };
+};
 
 type SwaggerJSONContent = {
   schema: {
@@ -26,21 +31,16 @@ type SwaggerJSONContent = {
   };
 };
 
-type SwaggerResponse = {
-  description: string;
-  content?: {
-    'application/json': SwaggerJSONContent;
-  };
-};
+export type JSONSchemaType = 'string' | 'number' | 'boolean' | 'object' | 'array';
 
 export type RouteParam = {
   name: string;
   in: 'path' | 'query' | 'header' | 'cookie';
   description?: string;
   required?: boolean;
-  type: JSONSchemaType
-  example?: string | number | boolean | object | []
-}
+  type: JSONSchemaType;
+  example?: string | number | boolean | object | [];
+};
 
 export type SwaggerParams = {
   summary: string;
@@ -53,14 +53,55 @@ export type SwaggerParams = {
   statusCode?: number;
   contentType?: string;
   errorMapping?: Record<number, { description: string, schema?: object }>;
-  routeParams?: RouteParam[];  // Novo campo para parâmetros de rota
+  routeParams?: RouteParam[];
 };
 
 export const buildSwaggerDoc = (params: SwaggerParams): SwaggerOperation => {
+  const defaultResponses = buildDefaultResponses(params);
+  const customResponses = buildCustomResponses(params);
+  const responses = { ...defaultResponses, ...customResponses } as any
+
+  return {
+    summary: params.summary,
+    tags: params.tags,
+    deprecated: params.deprecated,
+    operationId: params.operationId,
+    parameters: params.routeParams?.length ? params.routeParams : undefined,
+    security: params.authentication ? [{ BearerAuth: [] }] : undefined,
+    responses
+  };
+};
+
+const buildDefaultResponses = (params: SwaggerParams) => {
   const statusCode = params.statusCode ?? 200;
   const contentType = params.contentType ?? 'application/json';
 
-  const responses: { [key: number]: any } = params.errorMapping
+  const outputSchema = params.output
+    ? { description: 'Success', content: { [contentType]: { schema: params.output } } }
+    : { description: 'Success' };
+
+  const notFoundResponse = (params.input && Object.keys(params.input).some(key => key.endsWith('Id') || key === 'id'))
+    ? { 404: { description: 'Not Found' } }
+    : {};
+
+  const unauthorizedResponse = params.authentication
+    ? { 401: { description: 'Unauthorized', content: { [contentType]: { schema: { type: 'object', properties: { errors: { type: 'array', items: { type: 'string' } } } } } } } }
+    : {};
+
+  return {
+    400: { description: 'Bad Request' },
+    403: { description: 'Forbidden' },
+    500: { description: 'Internal Server Error' },
+    [statusCode]: outputSchema,
+    ...notFoundResponse,
+    ...unauthorizedResponse
+  };
+};
+
+const buildCustomResponses = (params: SwaggerParams) => {
+  const contentType = params.contentType ?? 'application/json';
+
+  return params.errorMapping
     ? Object.entries(params.errorMapping).reduce((acc, [code, { description, schema }]) => {
       acc[+code] = {
         description,
@@ -75,39 +116,5 @@ export const buildSwaggerDoc = (params: SwaggerParams): SwaggerOperation => {
       };
       return acc;
     }, {} as { [key: number]: any })
-    : {
-      400: { description: 'Bad Request' },
-      403: { description: 'Forbidden' },
-      500: { description: 'Internal Server Error' }
-    };
-
-  responses[statusCode] = params.output
-    ? {
-      description: 'Success',
-      content: {
-        [contentType]: {
-          schema: params.output
-        }
-      }
-    }
-    : { description: 'Success' };
-
-  if (params.input && Object.keys(params.input).some(key => key.endsWith('Id') || key === 'id')) {
-    responses[404] = { description: 'Not Found' };
-  }
-
-  if (params.authentication) {
-    responses[401] = { description: 'Unauthorized', content: { [contentType]: { schema: { type: 'object', properties: { errors: { type: 'array', items: { type: 'string' } } } } } } };
-  }
-
-
-  return {
-    summary: params.summary,
-    tags: params.tags,
-    deprecated: params.deprecated,
-    operationId: params.operationId,
-    responses,
-    parameters: params.routeParams?.length ? params.routeParams : undefined,
-    security: params.authentication ? [{ BearerAuth: [] }] : undefined
-  };
+    : {};
 };

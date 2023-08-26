@@ -1,11 +1,11 @@
 import * as path from 'node:path';
-import * as fs from 'node:fs';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { Request } from '../request';
 import { Response } from '../response';
 import { HttpServer } from '../server';
 import { getContentType } from '../utils/content-type';
 import { JSONSchemaType } from '../utils/build-swagger-doc';
+import { generateIndexHtml } from '../utils/swagger-html';
 
 export class Swagger {
   private readonly swaggerUiAssetPath: string;
@@ -15,48 +15,54 @@ export class Swagger {
     private readonly document: Swagger.Document,
     private readonly options: Swagger.Options
   ) {
-    this.swaggerUiAssetPath = path.resolve(__dirname, 'swagger-ui');
-
-    httpServer.route('GET', this.options.path, this.serveSwaggerDocs)
-    httpServer.route('GET', '/swagger-ui/*', this.serveSwaggerStaticFiles)
+    this.swaggerUiAssetPath = path.resolve(__dirname, '..', '..', 'swagger-ui');
+    // Register routes
+    httpServer.get(this.options.path, this.serveSwaggerDocs);
+    httpServer.get('/swagger-ui/*', this.serveSwaggerStaticFiles);
   }
 
-  updateSwaggerDoc (method: string, path: string, swaggerData: any): void {
-    const swaggerPath = path.replace(/:([a-zA-Z0-9_]+)/g, '{$1}');
-    this.document.paths[swaggerPath] = this.document.paths[path] || {};
+  // Public Methods
+  // -----------------------------
+
+  public updateSwaggerDoc (method: string, routePath: string, swaggerData: Swagger.EndpointConfig): void {
+    const swaggerPath = this.formatSwaggerPath(routePath);
+    this.updateDocumentPaths(swaggerPath, method, swaggerData);
+    this.writeDocumentToFile();
+  }
+
+  // Private Methods
+  // -----------------------------
+
+  private formatSwaggerPath (routePath: string): string {
+    return routePath.replace(/:([a-zA-Z0-9_]+)/g, '{$1}');
+  }
+
+  private updateDocumentPaths (swaggerPath: string, method: string, swaggerData: Swagger.EndpointConfig): void {
+    this.document.paths[swaggerPath] = this.document.paths[swaggerPath] || {};
     this.document.paths[swaggerPath][method.toLowerCase()] = swaggerData;
-    writeFileSync('./swagger-ui/swagger.json', JSON.stringify(this.document));
   }
 
-  private async serveSwaggerDocs (req: Request, res: Response): Promise<void> {
-    if (req.url === this.options.path) {
-      const uiHtml = readFileSync(path.join(this.swaggerUiAssetPath, 'index.html'), 'utf8');
-      res.send(uiHtml, 200, { 'Content-Type': 'text/html' });
-    } else if (req.url!.startsWith('/swagger-ui') || req.url!.startsWith('/favicon')) {
-      const assetPath = path.join(this.swaggerUiAssetPath, req.url!.replace('/swagger-ui', ''));
-      if (existsSync(assetPath)) {
-        const asset = fs.readFileSync(assetPath)
-        const ext = path.extname(req.url!)
-        res.send(asset, 200, { 'Content-Type': getContentType(ext) })
-      } else {
-        res.notFoundError();
-      }
-    }
+  private writeDocumentToFile (): void {
+    const filePath = `${this.swaggerUiAssetPath}/swagger.json`;
+    writeFileSync(filePath, JSON.stringify(this.document));
   }
 
-  private async serveSwaggerStaticFiles (req: Request, res: Response): Promise<void> {
-    const swaggerDir = path.resolve(__dirname, '..', 'swagger-ui')
-    const filePath = path.join(swaggerDir, req.url!.replace('/swagger-ui', ''))
-    if (existsSync(filePath) && fs.statSync(filePath).isFile()) {
-      const fileContent = readFileSync(filePath)
-      const ext = path.extname(filePath)
-      res.send(fileContent, 200, { 'Content-Type': getContentType(ext) })
+  private serveSwaggerDocs = async (_req: Request, res: Response): Promise<void> => {
+    const uiHtml = generateIndexHtml(this.options.port)
+    res.send(uiHtml, 200, 'text/html');
+  }
+
+  private serveSwaggerStaticFiles = async (req: Request, res: Response): Promise<void> => {
+    const filePath = path.join(this.swaggerUiAssetPath, req.url!.replace('/swagger-ui', ''));
+    if (existsSync(filePath)) {
+      const fileContent = readFileSync(filePath);
+      const ext = path.extname(filePath);
+      res.send(fileContent, 200, getContentType(ext) as any);
     } else {
-      res.notFoundError()
+      res.notFound();
     }
   }
 }
-
 
 export namespace Swagger {
   export type Document = {
@@ -82,7 +88,6 @@ export namespace Swagger {
     type: JSONSchemaType
     example?: string | number | boolean | object | []
   }
-
   export type EndpointConfig = {
     summary: string;
     tags?: string[];
@@ -95,5 +100,4 @@ export namespace Swagger {
     contentType?: string;
     routeParams?: RouteParam[];
   };
-
 }

@@ -4,36 +4,22 @@ import * as os from 'node:os'
 
 import { Request } from './request'
 import { Response } from './response'
-import { type RequestHandler, Router } from './router'
+import { Router } from './router'
 import { Swagger } from './swagger/swagger'
 
 export class HttpServer {
-  private readonly middlewares: RequestHandler[] = []
+  private readonly middlewares: HttpServer.RequestHandler[] = []
   private readonly router: Router = new Router()
-  private errorClass?: new (...args: any[]) => Error
+  private readonly errorHandlers: Array<(error: Error, request: Request, response: Response) => boolean> = [];
   private swagger: Swagger | undefined
 
-
-  constructor (private readonly options: HttpServer.Options) {
-    const numCPUs = os.cpus().length
-
-    if (cluster.isPrimary) {
-      for (let i = 0; i < numCPUs; i++) { cluster.fork() }
-
-      cluster.on('exit', () => cluster.fork())
-
-      options.callback?.()
-    } else {
-      createServer(this.handleRequest.bind(this)).listen(options.port)
-    }
-  }
-
+  constructor (private readonly options: HttpServer.Options) { }
 
   enableSwagger (params: Swagger.Document): void {
     this.swagger = new Swagger(this, params, { path: '/api-docs', port: this.options.port })
   }
 
-  route (method: Router.Method, path: string, handler: RequestHandler, swagger?: Swagger.EndpointConfig): void {
+  protected routeWithMethod (method: Router.Method, path: string, handler: HttpServer.RequestHandler, swagger?: Swagger.EndpointConfig): void {
     this.router.register(method, path, handler)
 
     if (swagger && this.swagger) {
@@ -41,33 +27,89 @@ export class HttpServer {
     }
   }
 
-  apply (middleware: RequestHandler): void {
+  async get (path: string, handler: HttpServer.RequestHandler, swagger?: Swagger.EndpointConfig): Promise<void> {
+    this.routeWithMethod('GET', path, handler, swagger)
+  }
+
+  async post (path: string, handler: HttpServer.RequestHandler, swagger?: Swagger.EndpointConfig): Promise<void> {
+    this.routeWithMethod('POST', path, handler, swagger)
+  }
+
+  async put (path: string, handler: HttpServer.RequestHandler, swagger?: Swagger.EndpointConfig): Promise<void> {
+    this.routeWithMethod('PUT', path, handler, swagger)
+  }
+
+  async patch (path: string, handler: HttpServer.RequestHandler, swagger?: Swagger.EndpointConfig): Promise<void> {
+    this.routeWithMethod('PATCH', path, handler, swagger)
+  }
+
+  async delete (path: string, handler: HttpServer.RequestHandler, swagger?: Swagger.EndpointConfig): Promise<void> {
+    this.routeWithMethod('DELETE', path, handler, swagger)
+  }
+
+  useMiddleware (middleware: HttpServer.RequestHandler): void {
     this.middlewares.push(middleware)
   }
 
-  useError (errorClass: new (...args: any[]) => Error): void {
-    this.errorClass = errorClass
+  useRouter (router: Router): void {
+    this.router.aggregate(router);
   }
 
-  async handleRequest (req: IncomingMessage, res: ServerResponse): Promise<void> {
-    const request = await Request.create(req)
-    const response = new Response(res)
+  public useError (handler: (error: Error, request: Request, response: Response) => boolean): void {
+    this.errorHandlers.push(handler);
+  }
 
+  public listen (callback?: () => void): void {
+    if (cluster.isPrimary) {
+      this.setupCluster();
+      callback?.();
+    } else {
+      this.startServer();
+    }
+  }
+
+  private setupCluster (): void {
+    const numCPUs = os.cpus().length;
+
+    // Inicia um processo filho para cada CPU
+    for (let i = 0; i < numCPUs; i++) {
+      cluster.fork();
+    }
+
+    // Caso um processo filho seja encerrado, cria um novo para substituí-lo
+    cluster.on('exit', () => cluster.fork());
+  }
+
+  // Inicia o servidor HTTP
+  private startServer (): void {
+    createServer(this.handleRequest.bind(this)).listen(this.options.port);
+  }
+
+  private async handleRequest (req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const response = new Response(res)
+    const request = await Request.create(req, response)
     await Promise.all(this.middlewares.map(async middle => middle(request, response)))
 
     try {
       await this.router.route(request, response)
     } catch (error) {
-      if (this.errorClass && error instanceof this.errorClass) {
-        response.json(error, 400)
-        return
+      for (const errorHandler of this.errorHandlers) {
+        try {
+          errorHandler(error, request, response);
+        } catch (handlerError) {
+          response.internalServerError(handlerError);
+        }
       }
-      response.internalServerError()
+      // Call this if none of the errorHandlers were able to handle the error
+      response.internalServerError(error)
     }
+   // response.notFound()
   }
 }
 
 
 export namespace HttpServer {
-  export type Options = { port: number, callback?: () => void }
+  export type Options = { port: number }
+  export type RequestHandler = (req: Request, res: Response) => Promise<void>
+  export type ErrorHandler = (error: Error, req: Request, res: Response) => Promise<void>
 }

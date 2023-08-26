@@ -1,6 +1,6 @@
-import { corsMiddleware } from "../middlewares";
-import { HttpServer } from "../server";
-import { SwaggerParams, buildSwaggerDoc } from "../src/utils/build-swagger-doc";
+import { corsMiddleware } from "../src/middlewares";
+import { HttpServer } from "../src/server";
+import { buildSwaggerDoc } from "../src/utils/build-swagger-doc";
 // User schema for the response
 const UserSchema = {
   type: 'object',
@@ -21,30 +21,18 @@ const NotFoundErrorSchema = {
 };
 
 
-const app = new HttpServer({
-  "description": "This is a sample server clinic server.  You can find out more about Swagger at [http://swagger.io](http://swagger.io) or on [irc.freenode.net, #swagger](http://swagger.io/irc/).  For this sample, you can use the api key `special-key` to test the authorization filters.",
-  "version": "0.0.1",
-  "title": "Swagger Clinic Backend",
-  "termsOfService": "http://swagger.io/terms/",
-  "contact": {
-    "email": "contact@clinic.io"
-  },
-  "license": {
-    "name": "Apache 2.0",
-    "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
-  }
-})
+const app = new HttpServer({ port: 3000 })
 
-app.apply(corsMiddleware())
+app.useMiddleware(corsMiddleware())
 
-app.route('GET', '/user/:id', async (req, res) => {
+app.get('/user/:id', async (req, res) => {
 
 
   res.json({
     params: req.params
   })
 
- // res.notFoundError()
+  // res.notFoundError()
 
 
 }, buildSwaggerDoc({
@@ -62,8 +50,22 @@ app.route('GET', '/user/:id', async (req, res) => {
   }
 }))
 
+app.enableSwagger({
+  "description": "This is a sample server clinic server.  You can find out more about Swagger at [http://swagger.io](http://swagger.io) or on [irc.freenode.net, #swagger](http://swagger.io/irc/).  For this sample, you can use the api key `special-key` to test the authorization filters.",
+  "version": "0.0.1",
+  "title": "Swagger Clinic Backend",
+  "termsOfService": "http://swagger.io/terms/",
+  "contact": {
+    "email": "contact@clinic.io"
+  },
+  "license": {
+    "name": "Apache 2.0",
+    "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+  }
+})
 
-app.listen(3333, () => console.log('FOI'))
+
+app.listen(() => console.log('FOI'))
 
 
 
