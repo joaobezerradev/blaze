@@ -5,6 +5,7 @@
     "moduleResolution": "Node",
     "module": "CommonJS",
     "outDir": "./",
+    "declaration": true,
     "useUnknownInCatchVariables": false,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
