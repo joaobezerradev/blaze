@@ -1,3 +1,4 @@
+/* eslint-disable no-useless-return */
 import { type ServerResponse } from 'node:http'
 
 export class Response {
@@ -16,6 +17,7 @@ export class Response {
     }
     this.serverResponse.writeHead(statusCode)
     this.serverResponse.end(data)
+    return
   }
 
   // Success Responses
