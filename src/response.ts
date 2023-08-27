@@ -12,12 +12,15 @@ export class Response {
   }
 
   private sendResponse (data: any, statusCode: number, contentType?: Response.ContentType): void {
+    if (this.serverResponse.headersSent) {
+      console.warn('Headers already sent. Cannot send response.')
+      return
+    }
     if (contentType) {
       this.serverResponse.setHeader('Content-Type', contentType)
     }
     this.serverResponse.writeHead(statusCode)
     this.serverResponse.end(data)
-    return
   }
 
   // Success Responses

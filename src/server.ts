@@ -10,7 +10,7 @@ import { Swagger } from './swagger/swagger'
 export class Blaze {
   private readonly middlewares: Blaze.RequestHandler[] = []
   private readonly router: Router = new Router()
-  private readonly errorHandlers: Array<(error: Error, request: Request, response: Response) => boolean | undefined> = []
+  private readonly errorHandlers: Array<(error: Error, request: Request, response: Response) => boolean> = []
   private swagger: Swagger | undefined
 
   constructor (private readonly options: Blaze.Options) { }
@@ -88,27 +88,29 @@ export class Blaze {
   private async handleRequest (req: IncomingMessage, res: ServerResponse): Promise<void> {
     const response = new Response(res)
     const request = await Request.create(req, response)
-    await Promise.all(this.middlewares.map(async middle => middle(request, response)))
-
-    let isHandled = false // <-- Add this flag
 
     try {
+      await Promise.all(this.middlewares.map(async middle => middle(request, response)))
       await this.router.route(request, response)
     } catch (error) {
+      if (res.headersSent) {
+        console.error('Headers already sent. Cannot handle error properly.')
+        return
+      }
+      const errorHandled = false
       for (const errorHandler of this.errorHandlers) {
         try {
-          const handled = errorHandler(error, request, response) // Assume this returns a boolean indicating whether it handled the error
-          if (handled) {
-            isHandled = true // <-- Update the flag
-            break // No need to check other error handlers
+          if (errorHandler(error, request, response)) {
+            break
           }
+        // Exit if an errorHandler handles the error
         } catch (handlerError) {
           response.internalServerError(handlerError)
-          return // <-- Important: Prevent further code from executing
+          break // Exit if an errorHandler throws an error
         }
       }
-
-      if (!isHandled) { // <-- Check the flag here
+      if (!errorHandled) {
+        // Call this if none of the errorHandlers were able to handle the error
         response.internalServerError(error)
       }
     }
