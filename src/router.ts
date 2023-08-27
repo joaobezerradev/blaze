@@ -1,12 +1,12 @@
 import { type Request } from './request'
 import { type Response } from './response'
-import { type HttpServer } from './server'
+import { type Blaze } from './server'
 
 export class Router {
-  private routes: Record<string, { handler: HttpServer.RequestHandler, pattern: RegExp, paramNames: string[] }> = {}
+  private routes: Record<string, { handler: Blaze.RequestHandler, pattern: RegExp, paramNames: string[] }> = {}
 
   // Register a new route with a request handler
-  register (method: Router.Method, path: string, requestHandler: HttpServer.RequestHandler): void {
+  register (method: Router.Method, path: string, requestHandler: Blaze.RequestHandler): void {
     const { pattern, paramNames } = this.generatePatternAndParamNames(path)
     this.routes[`${method}|${pattern}`] = { handler: requestHandler, pattern, paramNames }
   }

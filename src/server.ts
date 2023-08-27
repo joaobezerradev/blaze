@@ -8,18 +8,18 @@ import { Router } from './router'
 import { Swagger } from './swagger/swagger'
 
 export class Blaze {
-  private readonly middlewares: HttpServer.RequestHandler[] = []
+  private readonly middlewares: Blaze.RequestHandler[] = []
   private readonly router: Router = new Router()
   private readonly errorHandlers: Array<(error: Error, request: Request, response: Response) => boolean> = []
   private swagger: Swagger | undefined
 
-  constructor (private readonly options: HttpServer.Options) { }
+  constructor (private readonly options: Blaze.Options) { }
 
   enableSwagger (params: Swagger.Document): void {
     this.swagger = new Swagger(this, params, { path: '/api-docs', port: this.options.port })
   }
 
-  protected routeWithMethod (method: Router.Method, path: string, handler: HttpServer.RequestHandler, swagger?: Swagger.EndpointConfig): void {
+  protected routeWithMethod (method: Router.Method, path: string, handler: Blaze.RequestHandler, swagger?: Swagger.EndpointConfig): void {
     this.router.register(method, path, handler)
 
     if (swagger && this.swagger) {
@@ -27,27 +27,27 @@ export class Blaze {
     }
   }
 
-  async get (path: string, handler: HttpServer.RequestHandler, swagger?: Swagger.EndpointConfig): Promise<void> {
+  async get (path: string, handler: Blaze.RequestHandler, swagger?: Swagger.EndpointConfig): Promise<void> {
     this.routeWithMethod('GET', path, handler, swagger)
   }
 
-  async post (path: string, handler: HttpServer.RequestHandler, swagger?: Swagger.EndpointConfig): Promise<void> {
+  async post (path: string, handler: Blaze.RequestHandler, swagger?: Swagger.EndpointConfig): Promise<void> {
     this.routeWithMethod('POST', path, handler, swagger)
   }
 
-  async put (path: string, handler: HttpServer.RequestHandler, swagger?: Swagger.EndpointConfig): Promise<void> {
+  async put (path: string, handler: Blaze.RequestHandler, swagger?: Swagger.EndpointConfig): Promise<void> {
     this.routeWithMethod('PUT', path, handler, swagger)
   }
 
-  async patch (path: string, handler: HttpServer.RequestHandler, swagger?: Swagger.EndpointConfig): Promise<void> {
+  async patch (path: string, handler: Blaze.RequestHandler, swagger?: Swagger.EndpointConfig): Promise<void> {
     this.routeWithMethod('PATCH', path, handler, swagger)
   }
 
-  async delete (path: string, handler: HttpServer.RequestHandler, swagger?: Swagger.EndpointConfig): Promise<void> {
+  async delete (path: string, handler: Blaze.RequestHandler, swagger?: Swagger.EndpointConfig): Promise<void> {
     this.routeWithMethod('DELETE', path, handler, swagger)
   }
 
-  useMiddleware (middleware: HttpServer.RequestHandler): void {
+  useMiddleware (middleware: Blaze.RequestHandler): void {
     this.middlewares.push(middleware)
   }
 
@@ -106,7 +106,7 @@ export class Blaze {
   }
 }
 
-export namespace HttpServer {
+export namespace Blaze {
   export type Options = { port: number }
   export type RequestHandler = (req: Request, res: Response) => Promise<void>
   export type ErrorHandler = (error: Error, req: Request, res: Response) => Promise<void>
