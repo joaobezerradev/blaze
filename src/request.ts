@@ -4,11 +4,11 @@ import { IncomingMessage } from 'node:http'
 import { type Response } from './response'
 
 // Classe Request que estende IncomingMessage do Node.js
-export class Request<Body = Request.RequestInput, Params = Request.RequestInput, Query = Request.RequestInput, User = Request.RequestInput> extends IncomingMessage {
-  public params: Params = {} as Params
-  public query: Query = {} as Query
-  public body: Body = {} as Body
-  public user: User = {} as User
+export class Request extends IncomingMessage {
+  public params: object = {}
+  public query: object = {}
+  public body: object = {}
+  public user: object = {}
 
   // Método estático para criar uma nova instância de Request
   public static async create (req: IncomingMessage, res: Response): Promise<Request> {

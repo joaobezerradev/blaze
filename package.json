@@ -1,6 +1,6 @@
 {
   "name": "blaze-http",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "We present a simple HTTP server framework using the native Node.js http module. It's a simplified, lightweight HTTP server with a routing system, built on Node.js. Features include request parsing, response handling, and API documentation via Swagger",
   "types": "index.d.ts",
   "main": "index.js",
