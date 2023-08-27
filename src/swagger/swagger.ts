@@ -18,6 +18,7 @@ export class Swagger {
     private readonly options: Swagger.Options
   ) {
     this.swaggerUiAssetPath = path.resolve('..', 'swagger-ui')
+    console.log({ assetPath: this.swaggerUiAssetPath })
     // Register routes
     httpServer.get(this.options.path, this.serveSwaggerDocs)
     httpServer.get('/swagger-ui/*', this.serveSwaggerStaticFiles)
