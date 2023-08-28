@@ -35,7 +35,7 @@ Blaze HTTP API Framework is a powerful HTTP server framework built on top of Nod
 ## Installation
 
 ```bash
-npm install my-http-api-framework
+npm install blaze-http
 ```
 
 ## Usage
@@ -45,7 +45,7 @@ npm install my-http-api-framework
 You can start a new server by creating an instance of `Blaze`.
 
 ```typescript
-import { Blaze } from 'my-http-api-framework';
+import { Blaze } from 'blaze-http';
 const app = new Blaze({ port: 3000 });
 app.listen(() => {
   console.log('Server started at http://localhost:3000');
@@ -57,7 +57,7 @@ app.listen(() => {
 Create routes using the Router class and associate them with request handlers.
 
 ```typescript
-import { Router } from 'my-http-api-framework';
+import { Router } from 'blaze-http';
 
 const router = new Router();
 router.register('GET', '/hello', (req, res) => {
@@ -82,7 +82,7 @@ app.get('/users/:id', async (req, res) => {
 Middleware functions can be used for request preprocessing.
 
 ```typescript
-import { corsMiddleware } from 'my-http-api-framework';
+import { corsMiddleware } from 'blaze-http';
 app.useMiddleware(corsMiddleware);
 ```
 
@@ -94,9 +94,7 @@ You can specify custom error handlers.
 app.useError((error, req, res) => {
   if (error instanceof MyCustomError) {
     res.badRequest(error.message);
-    return true;
   }
-  return false;
 });
 ```
 
@@ -105,7 +103,7 @@ app.useError((error, req, res) => {
 Integrate Swagger for API documentation.
 
 ```typescript
-import { buildSwaggerDoc } from 'my-http-api-framework';
+import { buildSwaggerDoc } from 'blaze-http';
 app.enableSwagger(buildSwaggerDoc());
 ```
 
