@@ -11,17 +11,36 @@ import { generateIndexHtml } from '../utils/swagger-html'
 
 export class Swagger {
   private readonly swaggerUiAssetPath: string
+  private readonly document: Swagger.Document
 
   constructor (
     httpServer: Blaze,
-    private readonly document: Swagger.Document,
+    info: Swagger.Info,
     private readonly options: Swagger.Options
   ) {
-    this.swaggerUiAssetPath = path.resolve(__dirname, '..', 'swagger-ui')
-    console.log({ assetPath: this.swaggerUiAssetPath })
+    this.swaggerUiAssetPath = path.resolve(__dirname, '..', '..', 'swagger-ui')
     // Register routes
     httpServer.get(this.options.path, this.serveSwaggerDocs)
     httpServer.get('/swagger-ui/*', this.serveSwaggerStaticFiles)
+
+    this.document = {
+      openapi: '3.0.0',
+      info,
+      components: {
+        securitySchemes: {
+          BearerAuth: {
+            type: 'http',
+            scheme: 'bearer',
+            bearerFormat: 'JWT'
+          }
+        }
+      },
+      schemes: [
+        'https',
+        'http'
+      ],
+      paths: {}
+    }
   }
 
   // Public Methods
@@ -68,7 +87,7 @@ export class Swagger {
 }
 
 export namespace Swagger {
-  export type Document = {
+  export type Info = {
     [key: string]: any
     description: string
     version: string
@@ -81,6 +100,25 @@ export namespace Swagger {
       name: string
       url: string
     }
+  }
+  export type Document = {
+    'openapi': '3.0.0'
+    'info': any
+    'components': {
+      'securitySchemes': {
+        'BearerAuth': {
+          'type': 'http'
+          'scheme': 'bearer'
+          'bearerFormat': 'JWT'
+        }
+      }
+    }
+    'schemes': [
+      'https',
+      'http'
+    ]
+    'paths': any
+
   }
   export type Options = { path: string, port: number }
 

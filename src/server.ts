@@ -15,7 +15,7 @@ export class Blaze {
 
   constructor (private readonly options: Blaze.Options) { }
 
-  enableSwagger (params: Swagger.Document): void {
+  enableSwagger (params: Swagger.Info): void {
     this.swagger = new Swagger(this, params, { path: '/api-docs', port: this.options.port })
   }
 
