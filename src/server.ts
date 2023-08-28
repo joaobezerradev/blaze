@@ -55,7 +55,7 @@ export class Blaze {
     this.router.aggregate(router)
   }
 
-  public useError (handler: (error: Error, request: Request, response: Response) => boolean): void {
+  public useError (handler: (error: Error, request: Request, response: Response) => void): void {
     this.errorHandlers.push(handler)
   }
 
