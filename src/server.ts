@@ -10,7 +10,7 @@ import { Swagger } from './swagger/swagger'
 export class Blaze {
   private readonly middlewares: Blaze.RequestHandler[] = []
   private readonly router: Router = new Router()
-  private readonly errorHandlers: Array<(error: Error, request: Request, response: Response) => boolean> = []
+  private readonly errorHandlers: Array<(error: Error, request: Request, response: Response) => void> = []
   private swagger: Swagger | undefined
 
   constructor (private readonly options: Blaze.Options) { }
@@ -93,26 +93,18 @@ export class Blaze {
       await Promise.all(this.middlewares.map(async middle => middle(request, response)))
       await this.router.route(request, response)
     } catch (error) {
-      if (res.headersSent) {
-        console.error('Headers already sent. Cannot handle error properly.')
-        return
-      }
-      const errorHandled = false
+      if (res.headersSent) return
+
       for (const errorHandler of this.errorHandlers) {
         try {
-          if (errorHandler(error, request, response)) {
-            break
-          }
-        // Exit if an errorHandler handles the error
+          errorHandler(error, request, response)
+          if (res.headersSent) return
         } catch (handlerError) {
           response.internalServerError(handlerError)
           break // Exit if an errorHandler throws an error
         }
       }
-      if (!errorHandled) {
-        // Call this if none of the errorHandlers were able to handle the error
-        response.internalServerError(error)
-      }
+      response.internalServerError(error)
     }
   }
 }
