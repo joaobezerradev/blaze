@@ -35,24 +35,20 @@ export class Router {
   // Route the request to the appropriate handler
   async route (req: Request, res: Response): Promise<void> {
     const urlPath = req.url?.split('?')[0] ?? '/'
-    if (await this.matchAndHandleRoute(urlPath, req, res)) {
-      return
-    }
+    await this.matchAndHandleRoute(urlPath, req, res)
     res.notFound()
   }
 
   // Try to match the route and handle it if found
-  private async matchAndHandleRoute (urlPath: string, req: Request, res: Response): Promise<boolean> {
+  private async matchAndHandleRoute (urlPath: string, req: Request, res: Response): Promise<void> {
     for (const key in this.routes) {
       const { pattern, paramNames, handler } = this.routes[key]
       const match = pattern.exec(urlPath)
       if (match) {
         this.populateRequestParams(req, match, paramNames)
         await handler(req, res)
-        return true
       }
     }
-    return false
   }
 
   // Populate request parameters from the URL

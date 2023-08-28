@@ -27,23 +27,23 @@ export class Blaze {
     }
   }
 
-  async get (path: string, handler: Blaze.RequestHandler, swagger?: Swagger.EndpointConfig): Promise<void> {
+  get (path: string, handler: Blaze.RequestHandler, swagger?: Swagger.EndpointConfig): void {
     this.routeWithMethod('GET', path, handler, swagger)
   }
 
-  async post (path: string, handler: Blaze.RequestHandler, swagger?: Swagger.EndpointConfig): Promise<void> {
+  post (path: string, handler: Blaze.RequestHandler, swagger?: Swagger.EndpointConfig): void {
     this.routeWithMethod('POST', path, handler, swagger)
   }
 
-  async put (path: string, handler: Blaze.RequestHandler, swagger?: Swagger.EndpointConfig): Promise<void> {
+  put (path: string, handler: Blaze.RequestHandler, swagger?: Swagger.EndpointConfig): void {
     this.routeWithMethod('PUT', path, handler, swagger)
   }
 
-  async patch (path: string, handler: Blaze.RequestHandler, swagger?: Swagger.EndpointConfig): Promise<void> {
+  patch (path: string, handler: Blaze.RequestHandler, swagger?: Swagger.EndpointConfig): void {
     this.routeWithMethod('PATCH', path, handler, swagger)
   }
 
-  async delete (path: string, handler: Blaze.RequestHandler, swagger?: Swagger.EndpointConfig): Promise<void> {
+  delete (path: string, handler: Blaze.RequestHandler, swagger?: Swagger.EndpointConfig): void {
     this.routeWithMethod('DELETE', path, handler, swagger)
   }
 
@@ -55,11 +55,11 @@ export class Blaze {
     this.router.aggregate(router)
   }
 
-  public useError (handler: (error: Error, request: Request, response: Response) => void): void {
+  useError (handler: (error: Error, request: Request, response: Response) => void): void {
     this.errorHandlers.push(handler)
   }
 
-  public listen (callback?: () => void): void {
+  listen (callback?: () => void): void {
     if (cluster.isPrimary) {
       this.setupCluster()
       callback?.()
