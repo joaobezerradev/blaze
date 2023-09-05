@@ -1,65 +1,109 @@
-import { type Request } from './request'
-import { type Response } from './response'
-import { type Blaze } from './server'
+import type { Swagger } from 'swagger/swagger'
+
+import type { Request } from './request'
+import type { Response } from './response'
+import type { Blaze } from './server'
+
+export namespace Router {
+  export type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  export type HandlerInfo = {
+    handler: Blaze.RequestHandler
+    pattern?: RegExp
+    paramNames?: string[]
+  }
+  export type NodeHandler = Partial<Record<Method, HandlerInfo>>
+
+}
 
 export class Router {
-  private routes: Record<string, { handler: Blaze.RequestHandler, pattern: RegExp, paramNames: string[] }> = {}
+  private readonly root: Node = new Node()
+  private readonly routes = new Map<string, Router.NodeHandler>()
+  private swagger?: Swagger
 
-  // Register a new route with a request handler
-  register (method: Router.Method, path: string, requestHandler: Blaze.RequestHandler): void {
-    const { pattern, paramNames } = this.generatePatternAndParamNames(path)
-    this.routes[`${method}|${pattern}`] = { handler: requestHandler, pattern, paramNames }
+  enableSwagger (swagger: Swagger): void {
+    this.swagger = swagger
   }
 
   aggregate (otherRouter: Router): void {
-    // Merge the other router's routes into this router's routes.
-    this.routes = { ...this.routes, ...otherRouter.routes }
-  }
+    for (const [key] of otherRouter.routes.entries()) {
+      const [method, path] = key.split(':') as [Router.Method, string]
 
-  // Generate RegExp pattern and parameter names for the path
-  private generatePatternAndParamNames (path: string): { pattern: RegExp, paramNames: string[] } {
-    const paramNames: string[] = []
-    let patternStr = '^' + path.replace(/:([a-zA-Z0-9_]+)/g, (_, paramName) => {
-      paramNames.push(paramName)
-      return '([a-zA-Z0-9_]+)'
-    })
+      if (this.routes.has(key)) {
+        throw new Error(`Duplicate route found: ${method} ${path}`)
+      }
 
-    if (path.endsWith('/*')) {
-      patternStr = patternStr.slice(0, -2) + '(?:/.*)?'
-    }
-
-    patternStr += '$'
-    return { pattern: new RegExp(patternStr), paramNames }
-  }
-
-  // Route the request to the appropriate handler
-  async route (req: Request, res: Response): Promise<void> {
-    const urlPath = req.url?.split('?')[0] ?? '/'
-    await this.matchAndHandleRoute(urlPath, req, res)
-    res.notFound()
-  }
-
-  // Try to match the route and handle it if found
-  private async matchAndHandleRoute (urlPath: string, req: Request, res: Response): Promise<void> {
-    for (const key in this.routes) {
-      const { pattern, paramNames, handler } = this.routes[key]
-      const match = pattern.exec(urlPath)
-      if (match) {
-        this.populateRequestParams(req, match, paramNames)
-        await handler(req, res)
+      const handlerInfo = otherRouter.routes.get(key)
+      if (handlerInfo?.[method]?.handler) {
+        this.register(method, path, handlerInfo[method]!.handler)
       }
     }
   }
 
-  // Populate request parameters from the URL
-  private populateRequestParams (req: Request, match: RegExpExecArray, paramNames: string[]): void {
-    req.params = paramNames.reduce<Record<string, string>>((params, paramName, index) => {
-      params[paramName] = match[index + 1]
-      return params
-    }, {})
+  register (method: Router.Method, path: string, requestHandler: Blaze.RequestHandler, swaggerConfig?: Swagger.EndpointConfig): void {
+    const segments = this.getPathSegments(path)
+    const endpointNode = this.getNodeForSegments(segments)
+
+    if (!endpointNode) return
+
+    if (!endpointNode.handler[method]) {
+      endpointNode.handler[method] = { handler: requestHandler }
+    } else {
+      endpointNode.handler[method]!.handler = requestHandler
+    }
+
+    const handlerInfo: Partial<Record<Router.Method, Router.HandlerInfo>> = { [method]: endpointNode.handler[method]! }
+    this.routes.set(`${method}:${path}`, handlerInfo)
+
+    if (this.swagger && swaggerConfig) {
+      this.swagger.updateSwaggerDoc(method, path, swaggerConfig)
+    }
+  }
+
+  async route (req: Request, res: Response): Promise<void> {
+    const segments = this.getPathSegments(req.url?.split('?')[0] ?? '/')
+    const matchingNode = this.getNodeForSegments(segments, false)
+
+    if (!matchingNode) {
+      res.notFound()
+      return
+    }
+
+    const handlerInfo = matchingNode.handler[req.method as Router.Method]
+    handlerInfo ? await handlerInfo.handler(req, res) : res.notFound()
+  }
+
+  private getPathSegments (path: string): string[] {
+    return path.split('/').filter(segment => segment !== '')
+  }
+
+  private getNodeForSegments (segments: string[], createIfNotExist: boolean = true): Node | undefined {
+    let currentNode = this.root
+    for (const segment of segments) {
+      if (!currentNode.children[segment] && createIfNotExist) {
+        currentNode.children[segment] = new Node()
+      }
+      currentNode = currentNode.children[segment] ?? undefined
+
+      if (!currentNode) {
+        return undefined
+      }
+    }
+    return currentNode
   }
 }
 
-export namespace Router {
-  export type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+class Node {
+  children: Record<string, Node> = {}
+  handler: Router.NodeHandler = {}
+
+  constructor () {
+    // Initialize handlers with default functions
+    for (const method of ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as Router.Method[]) {
+      this.handler[method] = {
+        handler: async (_req: Request, _res: Response): Promise<void> => {
+          throw new Error(`Function for ${method} not implemented.`)
+        }
+      }
+    }
+  }
 }

@@ -10,42 +10,25 @@ import { Swagger } from './swagger/swagger'
 export class Blaze {
   private readonly middlewares: Blaze.RequestHandler[] = []
   private readonly router: Router = new Router()
-  private readonly errorHandlers: Array<(error: Error, request: Request, response: Response) => void> = []
+  private readonly errorHandlers: Blaze.ErrorHandler[] = []
   private swagger: Swagger | undefined
 
-  constructor (private readonly options: Blaze.Options) { }
+  constructor (private readonly options: Blaze.Options) {}
 
   enableSwagger (params: Swagger.Info): void {
     this.swagger = new Swagger(this, params, { path: '/api-docs', port: this.options.port })
+    this.router.enableSwagger(this.swagger)
   }
 
-  protected routeWithMethod (method: Router.Method, path: string, handler: Blaze.RequestHandler, swagger?: Swagger.EndpointConfig): void {
-    this.router.register(method, path, handler)
-
-    if (swagger && this.swagger) {
-      this.swagger.updateSwaggerDoc(method, path, swagger)
-    }
+  route (method: Router.Method, path: string, handler: Blaze.RequestHandler, swagger?: Swagger.EndpointConfig): void {
+    this.router.register(method, path, handler, swagger)
   }
 
-  get (path: string, handler: Blaze.RequestHandler, swagger?: Swagger.EndpointConfig): void {
-    this.routeWithMethod('GET', path, handler, swagger)
-  }
-
-  post (path: string, handler: Blaze.RequestHandler, swagger?: Swagger.EndpointConfig): void {
-    this.routeWithMethod('POST', path, handler, swagger)
-  }
-
-  put (path: string, handler: Blaze.RequestHandler, swagger?: Swagger.EndpointConfig): void {
-    this.routeWithMethod('PUT', path, handler, swagger)
-  }
-
-  patch (path: string, handler: Blaze.RequestHandler, swagger?: Swagger.EndpointConfig): void {
-    this.routeWithMethod('PATCH', path, handler, swagger)
-  }
-
-  delete (path: string, handler: Blaze.RequestHandler, swagger?: Swagger.EndpointConfig): void {
-    this.routeWithMethod('DELETE', path, handler, swagger)
-  }
+  get = this.route.bind(this, 'GET')
+  post = this.route.bind(this, 'POST')
+  put = this.route.bind(this, 'PUT')
+  patch = this.route.bind(this, 'PATCH')
+  delete = this.route.bind(this, 'DELETE')
 
   useMiddleware (middleware: Blaze.RequestHandler): void {
     this.middlewares.push(middleware)
@@ -55,7 +38,7 @@ export class Blaze {
     this.router.aggregate(router)
   }
 
-  useError (handler: (error: Error, request: Request, response: Response) => void): void {
+  useError (handler: Blaze.ErrorHandler): void {
     this.errorHandlers.push(handler)
   }
 
@@ -64,6 +47,9 @@ export class Blaze {
       this.setupCluster()
       callback?.()
     } else {
+      if (this.swagger) {
+        this.router.enableSwagger(this.swagger)
+      }
       this.startServer()
     }
   }
@@ -71,16 +57,13 @@ export class Blaze {
   private setupCluster (): void {
     const numCPUs = os.cpus().length
 
-    // Inicia um processo filho para cada CPU
     for (let i = 0; i < numCPUs; i++) {
       cluster.fork()
     }
 
-    // Caso um processo filho seja encerrado, cria um novo para substituí-lo
     cluster.on('exit', () => cluster.fork())
   }
 
-  // Inicia o servidor HTTP
   private startServer (): void {
     createServer(this.handleRequest.bind(this)).listen(this.options.port)
   }
@@ -90,20 +73,22 @@ export class Blaze {
     const request = await Request.create(req, response)
 
     try {
-      await Promise.all(this.middlewares.map(async middle => middle(request, response)))
+      await Promise.all(this.middlewares.map(async middleware => middleware(request, response)))
+
       await this.router.route(request, response)
     } catch (error) {
       if (res.headersSent) return
 
       for (const errorHandler of this.errorHandlers) {
         try {
-          errorHandler(error, request, response)
+          await errorHandler(error, request, response)
           if (res.headersSent) return
         } catch (handlerError) {
           response.internalServerError(handlerError)
-          break // Exit if an errorHandler throws an error
+          break
         }
       }
+
       response.internalServerError(error)
     }
   }
