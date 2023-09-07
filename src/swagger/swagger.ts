@@ -3,13 +3,10 @@ import * as fs from 'node:fs'
 import * as fsp from 'node:fs/promises'
 import * as path from 'node:path'
 
-import { getContentType } from 'utils/content-type'
-
 import { type Request } from '../request'
 import { type Response } from '../response'
 import { type Blaze } from '../server'
-import { type JSONSchemaType } from '../utils/build-swagger-doc'
-import { generateIndexHtml } from '../utils/swagger-html'
+import { type JSONSchemaType, generateIndexHtml, getContentType } from '../utils'
 
 export class Swagger {
   private readonly swaggerUiAssetPath: string
