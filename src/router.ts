@@ -41,19 +41,34 @@ export class Router {
 
   register (method: Router.Method, path: string, requestHandler: Blaze.RequestHandler, swaggerConfig?: Swagger.EndpointConfig): void {
     const segments = this.getPathSegments(path)
-    const endpointNode = this.getNodeForSegments(segments)
+    let currentNode = this.root
 
-    if (!endpointNode) return
+    for (const segment of segments) {
+      let nextNode = currentNode.children[segment]
 
-    if (!endpointNode.handler[method]) {
-      endpointNode.handler[method] = { handler: requestHandler }
-    } else {
-      endpointNode.handler[method]!.handler = requestHandler
+      // Dynamic segment logic
+      if (segment.startsWith(':')) {
+        const paramName = segment.slice(1)
+        if (!currentNode.dynamicChild || currentNode.dynamicChild.param !== paramName) {
+          currentNode.dynamicChild = { param: paramName, node: new Node() }
+        }
+        nextNode = currentNode.dynamicChild.node
+      } else if (!nextNode) {
+        nextNode = new Node()
+        currentNode.children[segment] = nextNode
+      }
+
+      currentNode = nextNode
     }
 
-    const handlerInfo: Partial<Record<Router.Method, Router.HandlerInfo>> = { [method]: endpointNode.handler[method]! }
+    // Save the handler to the node
+    currentNode.handler[method] = { handler: requestHandler }
+
+    // Update routes map
+    const handlerInfo: Partial<Record<Router.Method, Router.HandlerInfo>> = { [method]: currentNode.handler[method]! }
     this.routes.set(`${method}:${path}`, handlerInfo)
 
+    // Update Swagger documentation if enabled and provided
     if (this.swagger && swaggerConfig) {
       this.swagger.updateSwaggerDoc(method, path, swaggerConfig)
     }
@@ -61,14 +76,16 @@ export class Router {
 
   async route (req: Request, res: Response): Promise<void> {
     const segments = this.getPathSegments(req.url?.split('?')[0] ?? '/')
-    const matchingNode = this.getNodeForSegments(segments, false)
+    const result = this.getNodeForSegments(segments, false)
 
-    if (!matchingNode) {
+    if (!result) {
       res.notFound()
       return
     }
 
-    const handlerInfo = matchingNode.handler[req.method as Router.Method]
+    req.params = { ...req.params, ...result.params } // Merge existing params with new ones
+
+    const handlerInfo = result.node.handler[req.method as Router.Method]
     handlerInfo ? await handlerInfo.handler(req, res) : res.notFound()
   }
 
@@ -76,24 +93,40 @@ export class Router {
     return path.split('/').filter(segment => segment !== '')
   }
 
-  private getNodeForSegments (segments: string[], createIfNotExist: boolean = true): Node | undefined {
+  private getNodeForSegments (segments: string[], createIfNotExist: boolean = true): { node: Node, params: Record<string, string> } | undefined {
     let currentNode = this.root
+    const params: Record<string, string> = {}
+
     for (const segment of segments) {
-      if (!currentNode.children[segment] && createIfNotExist) {
-        currentNode.children[segment] = new Node()
+      let nextNode = currentNode.children[segment]
+
+      if (!nextNode && currentNode.dynamicChild) {
+        params[currentNode.dynamicChild.param] = segment
+        nextNode = currentNode.dynamicChild.node
+      } else if (!nextNode && createIfNotExist) {
+        if (segment.startsWith(':')) {
+          currentNode.dynamicChild = { param: segment.slice(1), node: new Node() }
+          nextNode = currentNode.dynamicChild.node
+        } else {
+          nextNode = new Node()
+          currentNode.children[segment] = nextNode
+        }
       }
-      currentNode = currentNode.children[segment] ?? undefined
+
+      currentNode = nextNode || undefined
 
       if (!currentNode) {
         return undefined
       }
     }
-    return currentNode
+
+    return { node: currentNode, params }
   }
 }
 
 class Node {
   children: Record<string, Node> = {}
+  dynamicChild?: { param: string, node: Node }
   handler: Router.NodeHandler = {}
 
   constructor () {

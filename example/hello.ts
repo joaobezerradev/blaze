@@ -36,7 +36,27 @@ app.enableSwagger({
     url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
   }
 })
-app.get('/user/:id', async (req, res) => {
+
+app.route('PATCH', '/user/:id', async (req, res) => {
+  res.json({
+    params: req.params,
+    xd: true
+  })
+}, buildSwaggerDoc({
+  summary: 'Retrieve user by JJ',
+  tags: ['User'],
+  authentication: true,
+  operationId: 'Update',
+  input: { id: { type: 'string', description: 'User ID', example: 'uuid' } }, // Represents path parameter 'id'
+  output: UserSchema,
+  statusCode: 200,
+  contentType: 'application/json',
+  routeParams: [{ in: 'path', name: 'id', description: 'the Identifier', required: true, type: 'string', example: 'uuid' }],
+  errorMapping: {
+    404: { description: 'User Not Found', schema: NotFoundErrorSchema }
+  }
+}))
+app.route('GET', '/user/:id', async (req, res) => {
   res.json({
     params: req.params
   })

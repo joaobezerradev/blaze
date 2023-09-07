@@ -1,12 +1,14 @@
 /* eslint-disable @typescript-eslint/no-floating-promises */
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import * as fs from 'node:fs'
+import * as fsp from 'node:fs/promises'
 import * as path from 'node:path'
+
+import { getContentType } from 'utils/content-type'
 
 import { type Request } from '../request'
 import { type Response } from '../response'
 import { type Blaze } from '../server'
 import { type JSONSchemaType } from '../utils/build-swagger-doc'
-import { getContentType } from '../utils/content-type'
 import { generateIndexHtml } from '../utils/swagger-html'
 
 export class Swagger {
@@ -19,9 +21,28 @@ export class Swagger {
     private readonly options: Swagger.Options
   ) {
     this.swaggerUiAssetPath = path.resolve(__dirname, '..', '..', 'swagger-ui')
-    // Register routes
-    httpServer.get(this.options.path, this.serveSwaggerDocs)
-    httpServer.get('/swagger-ui/*', this.serveSwaggerStaticFiles)
+
+    if (!httpServer) {
+      console.error('httpServer instance is not provided to Swagger class')
+    }
+    if (!info) {
+      console.error('Swagger Info is not provided')
+    }
+    if (!this.options?.path || !this.options.port) {
+      console.error('Swagger Options or its properties are missing')
+    }
+    if (!fs.existsSync(this.swaggerUiAssetPath)) {
+      console.error(`Swagger UI Asset Directory doesn't exist at: ${this.swaggerUiAssetPath}`)
+    }
+    const files = fs.readdirSync(this.swaggerUiAssetPath)
+
+    for (const file of files) {
+      httpServer.route('GET', `/swagger-ui/${file}`, this.serveSwaggerStaticFiles)
+    }
+
+    httpServer.route('GET', '/swagger-ui/swagger.json', this.serveSwaggerStaticFiles)
+
+    httpServer.route('GET', this.options.path, this.serveSwaggerDocs)
 
     this.document = {
       openapi: '3.0.0',
@@ -43,17 +64,12 @@ export class Swagger {
     }
   }
 
-  // Public Methods
-  // -----------------------------
-
   public updateSwaggerDoc (method: string, routePath: string, swaggerData: Swagger.EndpointConfig): void {
     const swaggerPath = this.formatSwaggerPath(routePath)
+
     this.updateDocumentPaths(swaggerPath, method, swaggerData)
     this.writeDocumentToFile()
   }
-
-  // Private Methods
-  // -----------------------------
 
   private formatSwaggerPath (routePath: string): string {
     return routePath.replace(/:([a-zA-Z0-9_]+)/g, '{$1}')
@@ -64,31 +80,45 @@ export class Swagger {
     this.document.paths[swaggerPath][method.toLowerCase()] = swaggerData
   }
 
-  private writeDocumentToFile (): void {
+  private async writeDocumentToFile (): Promise<void> {
     const filePath = `${this.swaggerUiAssetPath}/swagger.json`
-    writeFileSync(filePath, JSON.stringify(this.document))
-  }
-
-  private readonly serveSwaggerDocs = async (_req: Request, res: Response): Promise<void> => {
-    const uiHtml = generateIndexHtml(this.options.port)
-    res.send(uiHtml, 200, 'text/html')
+    await fsp.writeFile(filePath, JSON.stringify(this.document))
   }
 
   private readonly serveSwaggerStaticFiles = async (req: Request, res: Response): Promise<void> => {
     const filePath = path.join(this.swaggerUiAssetPath, req.url!.replace('/swagger-ui', ''))
-    if (existsSync(filePath)) {
-      const fileContent = readFileSync(filePath)
+
+    try {
+      await fsp.access(filePath, fsp.constants.F_OK)
+      const fileContent = await fsp.readFile(filePath)
       const ext = path.extname(filePath)
       res.send(fileContent, 200, getContentType(ext) as any)
-    } else {
-      res.notFound()
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        res.notFound()
+      } else {
+        // Handle other potential errors or log them
+        console.error(`Error reading file: ${error.message}`)
+        res.internalServerError(error)
+      }
+    }
+  }
+
+  private readonly serveSwaggerDocs = async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const uiHtml = generateIndexHtml(this.options.port)
+      if (!uiHtml) {
+        console.error('Failed to generate Swagger UI HTML')
+      }
+      res.send(uiHtml, 200, 'text/html')
+    } catch (error) {
+      console.error('Error while serving Swagger Docs:', error)
+      console.error('Detailed Error Stack:', error.stack)
     }
   }
 }
-
 export namespace Swagger {
   export type Info = {
-    [key: string]: any
     description: string
     version: string
     title: string

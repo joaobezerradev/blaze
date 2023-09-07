@@ -44,7 +44,13 @@ export class Request extends IncomingMessage {
         for await (const chunk of req) {
           body = Buffer.concat([body, chunk])
         }
-        this.body = JSON.parse(body.toString())
+
+        // Check if the body is empty or just contains whitespace
+        if (body.toString().trim() === '') {
+          this.body = {}
+        } else {
+          this.body = JSON.parse(body.toString())
+        }
       } catch (err) {
         res.internalServerError(err) // Assume this method sends a 500 Internal Server Error
       }

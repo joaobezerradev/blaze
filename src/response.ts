@@ -4,6 +4,10 @@ import { type ServerResponse } from 'node:http'
 export class Response {
   constructor (private readonly serverResponse: ServerResponse) { }
 
+  internal (): ServerResponse {
+    return this.serverResponse
+  }
+
   setResponseHeaders (headers?: Record<string, string>): void {
     if (!headers) return
     for (const [key, value] of Object.entries(headers)) {
@@ -13,7 +17,6 @@ export class Response {
 
   private sendResponse (data: any, statusCode: number, contentType?: Response.ContentType): void {
     if (this.serverResponse.headersSent) {
-      console.warn('Headers already sent. Cannot send response.')
       return
     }
     if (contentType) {

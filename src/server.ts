@@ -24,18 +24,8 @@ export class Blaze {
     this.router.register(method, path, handler, swagger)
   }
 
-  get = this.route.bind(this, 'GET')
-  post = this.route.bind(this, 'POST')
-  put = this.route.bind(this, 'PUT')
-  patch = this.route.bind(this, 'PATCH')
-  delete = this.route.bind(this, 'DELETE')
-
   useMiddleware (middleware: Blaze.RequestHandler): void {
     this.middlewares.push(middleware)
-  }
-
-  useRouter (router: Router): void {
-    this.router.aggregate(router)
   }
 
   useError (handler: Blaze.ErrorHandler): void {
