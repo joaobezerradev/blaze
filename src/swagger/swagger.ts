@@ -37,8 +37,6 @@ export class Swagger {
       httpServer.route('GET', `/swagger-ui/${file}`, this.serveSwaggerStaticFiles)
     }
 
-    httpServer.route('GET', '/swagger-ui/swagger.json', this.serveSwaggerStaticFiles)
-
     httpServer.route('GET', this.options.path, this.serveSwaggerDocs)
 
     this.document = {
@@ -59,6 +57,8 @@ export class Swagger {
       ],
       paths: {}
     }
+
+    this.writeDocumentToFile()
   }
 
   public updateSwaggerDoc (method: string, routePath: string, swaggerData: Swagger.EndpointConfig): void {
@@ -82,7 +82,21 @@ export class Swagger {
     await fsp.writeFile(filePath, JSON.stringify(this.document))
   }
 
+  private setCorsHeaders (req: Request, res: Response): void {
+    // Set CORS headers
+    res.setResponseHeaders({
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+    })
+
+    if (req.method === 'OPTIONS') {
+      res.noContent()
+    }
+  }
+
   private readonly serveSwaggerStaticFiles = async (req: Request, res: Response): Promise<void> => {
+    this.setCorsHeaders(req, res)
     const filePath = path.join(this.swaggerUiAssetPath, req.url!.replace('/swagger-ui', ''))
 
     try {
@@ -101,12 +115,10 @@ export class Swagger {
     }
   }
 
-  private readonly serveSwaggerDocs = async (_req: Request, res: Response): Promise<void> => {
+  private readonly serveSwaggerDocs = async (req: Request, res: Response): Promise<void> => {
+    this.setCorsHeaders(req, res)
     try {
       const uiHtml = generateIndexHtml(this.options.port)
-      if (!uiHtml) {
-        console.error('Failed to generate Swagger UI HTML')
-      }
       res.send(uiHtml, 200, 'text/html')
     } catch (error) {
       console.error('Error while serving Swagger Docs:', error)
@@ -114,6 +126,7 @@ export class Swagger {
     }
   }
 }
+
 export namespace Swagger {
   export type Info = {
     description: string

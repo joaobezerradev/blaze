@@ -79,7 +79,6 @@ export class Blaze {
           if (res.headersSent) return
         } catch (handlerError) {
           response.internalServerError(handlerError)
-          break
         }
       }
 
