@@ -24,6 +24,10 @@ export class Blaze {
     this.router.register(method, path, handler, swagger)
   }
 
+  useRouter (router: Router): void {
+    this.router.aggregate(router)
+  }
+
   useMiddleware (middleware: Blaze.RequestHandler): void {
     this.middlewares.push(middleware)
   }
